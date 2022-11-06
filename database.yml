@@ -1,0 +1,20 @@
+---
+  - name: Installing packages
+    hosts: webserver
+    become: yes
+    become_user: root
+    tasks:
+      - name: create directory
+        file:
+          path: ~/ansible-yaml
+          state: directory
+          
+      - name: copy script to remote server
+        copy:
+          src: ~/ansible-yaml/database-script.sh
+          dest: ~/ansible-yaml/database-script.sh
+          owner: root
+          mode: '0744'
+
+      - name: setup prostgres by running bash script
+        script: ~/ansible-yaml/database-script.sh

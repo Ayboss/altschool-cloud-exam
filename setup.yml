@@ -1,0 +1,77 @@
+---
+  - name: configurations 
+    hosts: webserver
+    become: yes
+    become_user: root
+    tasks:
+      - name: install git
+        apt:
+          name: git
+
+      - name: delete altlaravel folder if it exists before
+        file:
+          state: absent
+          path: /var/www/html/altlaravel
+
+      - name: git pull laravel project into folder
+        git:
+          repo: https://github.com/f1amy/laravel-realworld-example-app
+          dest: /var/www/html/altlaravel
+          clone: yes
+          update: yes
+      
+      - name: create and save a new .env file 
+        copy:
+          src: ~/ansible-yaml/.env
+          dest: /var/www/html/altlaravel/.env 
+          owner: root
+          mode: '0744'
+
+      - name: configure apache virtual hosts
+        copy:
+          src: ~/ansible-yaml/altschool.conf
+          dest: /etc/apache2/sites-available/altschool.conf 
+          owner: root
+          mode: '0744' 
+      
+      - name: enable the new config and disable the old config 
+        shell: |
+          a2dissite 000-default.conf
+          a2enmod rewrite
+          a2ensite altschool.conf
+          systemctl restart apache2
+        args:
+          chdir: /etc/apache2/sites-available/
+      
+      - name: change laravel permissions
+        shell: |
+          chown -R :www-data /var/www/html/altlaravel
+          chmod -R 775 /var/www/html/altlaravel
+          chmod -R 775 /var/www/html/altlaravel/storage
+          chmod -R 775 /var/www/html/altlaravel/bootstrap/cache
+          
+      - name: installing dependencies with composer
+        shell: |
+          "echo $COMPOSER_ALLOW_SUPERUSER"
+          composer install 
+        args:
+          chdir: /var/www/html/altlaravel
+        environment:
+          COMPOSER_ALLOW_SUPERUSER: 1
+        
+      - name: run php artisan migrate 
+        shell: php artisan migrate
+        args:
+          chdir: /var/www/html/altlaravel
+
+      - name: replace the web.php with active one
+        copy:
+          src: ~/ansible-yaml/web.php
+          dest: /var/www/html/altlaravel/routes/web.php 
+          owner: root
+          mode: '0744'
+          
+      - name: create php key
+        shell: php artisan key:generate
+        args:
+          chdir: /var/www/html/altlaravel

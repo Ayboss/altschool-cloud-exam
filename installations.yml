@@ -1,0 +1,63 @@
+---
+  - name: Installing packages
+    hosts: webserver
+    become: yes
+    become_user: root
+    tasks:
+      - name: apt update -y
+        shell: apt update -y
+           
+      - name: installing apache
+        apt:
+          name: apache2
+          state: latest
+      
+      - name: getting packages for php
+        shell: wget -qO - https://packages.sury.org/php/apt.gpg | sudo apt-key add -
+
+      - name: move packages to apt repository 
+        shell: echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/sury-php.list
+      
+      - name: apt update 
+        shell: apt update -y
+      
+      - name: installing php
+        apt: 
+          name: php8.1
+      
+      - name: installing pexpect for logical
+        apt:
+          name: python3-pexpect
+
+      - name: installing php extensions
+        apt:
+          name: 
+            - php-common 
+            - php-curl 
+            - php-json 
+            - php-mbstring 
+            - php-mysql 
+            - php-xml 
+            - php-zip
+            - php-pgsql
+
+      - name: downloading composer
+        command: curl -sS https://getcomposer.org/installer -o composer-setup.php
+        args:
+          chdir: ~
+
+      - name: get hash key of composer
+        shell: curl -sS https://composer.github.io/installer.sig
+        register: HASH
+        args:
+          chdir: ~
+
+      - name: verify if script is safe to run
+        command: php -r "if (hash_file('SHA384', 'composer-setup.php') === '{{HASH.stdout}}' ) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+        args:
+          chdir: ~  
+
+      - name: install composer
+        command: php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+        args:
+          chdir: ~ 
